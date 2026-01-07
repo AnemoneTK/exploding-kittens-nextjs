@@ -83,7 +83,8 @@ export default function Home() {
             💣
           </div>
           <h1 className="text-5xl sm:text-7xl font-black tracking-tighter bg-gradient-to-r from-red-600 to-orange-500 bg-clip-text text-transparent pb-2">
-            KITTEN BOMB
+            {/* KITTEN BOMB */}
+            แหมวระเบิด
           </h1>
           <p className="text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-md mx-auto">
             เกมการ์ดเหมียวระเบิดฉบับเล่นบนเว็บ <br />
