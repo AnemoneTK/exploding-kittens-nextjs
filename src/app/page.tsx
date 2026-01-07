@@ -86,7 +86,7 @@ export default function Home() {
             KITTEN BOMB
           </h1>
           <p className="text-lg sm:text-xl text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-            เกมการ์ดระเบิดเหมียวฉบับเล่นบนเว็บ <br />
+            เกมการ์ดเหมียวระเบิดฉบับเล่นบนเว็บ <br />
             หักหลังเพื่อน รอดชีวิต และระเบิดตู้ม!
           </p>
         </div>
