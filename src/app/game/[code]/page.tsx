@@ -60,6 +60,8 @@ export default function GamePage() {
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [targetMode, setTargetMode] = useState<"pair" | "favor" | null>(null);
 
+  const [isProcessing, setIsProcessing] = useState(false);
+
   // --- Init & Realtime ---
   useEffect(() => {
     const storedId = localStorage.getItem("kitten_player_id");
@@ -250,7 +252,7 @@ export default function GamePage() {
 
   // --- Logic การกดเลือกการ์ด (Index Based) ---
   const handleCardClick = (card: Card, index: number) => {
-    // A. กรณีสถานะพิเศษ: Pending / Favor
+    if (isProcessing) return;
     if (isPending && pendingAction) {
       if (card.type === "nope") {
         if (pendingAction.source_player_id === myId) {
@@ -374,15 +376,24 @@ export default function GamePage() {
 
   // แก้ให้รับ index โดยตรง เพื่อความแม่นยำ
   const handleGiveFavor = async (card: Card, index: number) => {
-    await fetch("/api/game/give", {
-      method: "POST",
-      body: JSON.stringify({
-        roomId: room?.id,
-        giverId: myId,
-        cardIndex: index, // ใช้ index ที่คลิกส่งไปเลย
-      }),
-    });
-    toast.success("ส่งให้แล้ว (จำใจสุดๆ)");
+    // ถ้ากำลังโหลดอยู่ ห้ามทำซ้ำ
+    if (isProcessing) return;
+
+    setIsProcessing(true); // 🔒 ล็อกทันที
+    try {
+      await fetch("/api/game/give", {
+        method: "POST",
+        body: JSON.stringify({
+          roomId: room?.id,
+          giverId: myId,
+          cardIndex: index,
+        }),
+      });
+      toast.success("ส่งให้แล้ว (จำใจสุดๆ)");
+    } catch (error) {
+      toast.error("ส่งของไม่สำเร็จ");
+      setIsProcessing(false); // 🔓 ปลดล็อกถ้าพัง
+    }
   };
 
   // --- Render ---
