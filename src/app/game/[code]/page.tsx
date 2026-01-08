@@ -62,6 +62,9 @@ export default function GamePage() {
 
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // เพิ่ม state สำหรับนับถอยหลัง
+  const [countdown, setCountdown] = useState(3);
+
   // --- Init & Realtime ---
   useEffect(() => {
     const storedId = localStorage.getItem("kitten_player_id");
@@ -143,14 +146,6 @@ export default function GamePage() {
 
       // วิธี 1: sendBeacon (เหมาะสำหรับปิดแท็บ)
       navigator.sendBeacon("/api/game/leave", blob);
-
-      // หรือถ้าจะใช้ fetch (ต้องมี keepalive: true)
-      // fetch('/api/game/leave', {
-      //   method: 'POST',
-      //   body: payload,
-      //   keepalive: true,
-      //   headers: { 'Content-Type': 'application/json' }
-      // });
     };
 
     // 1. ดักจับกรณีปิดแท็บ / Refresh
@@ -159,12 +154,38 @@ export default function GamePage() {
     // 2. ดักจับกรณีเปลี่ยนหน้า (Unmount Component) ใน Next.js
     return () => {
       window.removeEventListener("beforeunload", handleLeave);
-      // เรียก handleLeave() ตรงนี้ด้วยถ้าอยากให้เปลี่ยนหน้าแล้วออกเลย
-      // แต่ระวัง: บางทีแค่ Refresh เราไม่อยากให้ออก อาจต้องเช็คเงื่อนไขเพิ่ม
-      // สำหรับเกมนี้ แนะนำให้ "ปิดแท็บ = ออก" แต่ "Refresh = กลับมาได้"
-      // ดังนั้นใน return นี้อาจจะไม่ต้องใส่ handleLeave ก็ได้ถ้าอยากให้ Rejoin ได้
     };
   }, [myId, room?.id]); // dependency
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (isPending && pendingAction) {
+      // 1. รีเซ็ตเวลาเริ่มต้นทุกครั้งที่มี Action ใหม่
+      setCountdown(3);
+
+      // 2. เริ่มนับถอยหลัง
+      timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            // หมดเวลา! (นับถึง 0)
+            clearInterval(timer);
+
+            // สั่งทำงานอัตโนมัติ (เฉพาะเจ้าของ Action เท่านั้นที่เป็นคนยิง API)
+            // เพื่อป้องกัน API ชนกันหลายคน
+            if (pendingAction.source_player_id === myId) {
+              handleResolve();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    // Cleanup: ถ้ามีคน Nope หรือสถานะเปลี่ยน ให้หยุดเวลาทันที
+    return () => clearInterval(timer);
+  }, [isPending, pendingAction, myId]); // dependency สำคัญ
 
   // --- Helpers ---
   const me = players.find((p) => p.id === myId);
@@ -693,39 +714,45 @@ export default function GamePage() {
 
       {isPending && pendingAction && (
         <div className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in">
-          <div className="bg-slate-900 p-8 rounded-3xl border-2 border-yellow-400 text-center max-w-md w-full relative">
-            <h2 className="text-2xl font-bold text-white mb-4">
+          <div className="bg-slate-900 p-8 rounded-3xl border-2 border-yellow-400 text-center max-w-md w-full relative overflow-hidden">
+            {/* 🔥 แถบเวลาวิ่งด้านบน (Progress Bar) */}
+            <div
+              className="absolute top-0 left-0 h-2 bg-yellow-500 transition-all duration-1000 ease-linear"
+              style={{ width: `${(countdown / 3) * 100}%` }}
+            />
+
+            <h2 className="text-2xl font-bold text-white mb-4 mt-2">
               {pendingAction.source_player_id === myId ? "คุณ" : "เพื่อน"}{" "}
               กำลังจะใช้...
             </h2>
 
-            {/* แก้ไข Layout กันทับ */}
-            <div className="flex justify-center my-12 scale-125">
-              <GameCard type={pendingAction.card.type} />
+            <div className="flex justify-center my-12 scale-125 transition-transform">
+              {/* ใส่ Animation สั่นๆ ตอนใกล้หมดเวลา */}
+              <div className={countdown <= 1 ? "animate-bounce" : ""}>
+                <GameCard type={pendingAction.card.type} />
+              </div>
             </div>
 
             <div className="text-red-400 animate-pulse font-bold mb-6 flex flex-col gap-2 relative z-10">
               <AlertCircle className="mx-auto w-8 h-8" />
               <span className="text-lg">
-                ใครก็ได้! กดการ์ด NOPE เพื่อขัดขวาง!
+                เหลือเวลา{" "}
+                <span className="text-3xl text-yellow-400">{countdown}</span>{" "}
+                วินาที!
               </span>
               <span className="text-sm text-slate-500 font-normal">
-                (เลือกการ์ด Nope ในมือของคุณเลย)
+                (ใครมี NOPE รีบกดด่วน!)
               </span>
             </div>
 
-            {pendingAction.source_player_id === myId ? (
-              <button
-                onClick={handleResolve}
-                className="w-full bg-yellow-500 hover:bg-yellow-600 text-black font-black py-4 rounded-xl text-xl shadow-lg transition-transform hover:scale-105 active:scale-95"
-              >
-                🚀 ยืนยัน / ทำงาน!
-              </button>
-            ) : (
-              <div className="text-slate-500 text-sm">
-                รอเจ้าของเทิร์นกดยืนยัน...
-              </div>
-            )}
+            {/* 🔥 เอาปุ่มกดยืนยันออก! เปลี่ยนเป็นสถานะบอกเฉยๆ */}
+            <div className="w-full bg-slate-800 text-slate-300 font-bold py-4 rounded-xl text-lg flex items-center justify-center gap-2">
+              {countdown > 0 ? (
+                <>⏳ กำลังทำงานอัตโนมัติ...</>
+              ) : (
+                <>🚀 กำลังประมวลผล...</>
+              )}
+            </div>
           </div>
         </div>
       )}
