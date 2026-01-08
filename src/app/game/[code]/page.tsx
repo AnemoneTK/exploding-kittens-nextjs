@@ -157,36 +157,6 @@ export default function GamePage() {
     };
   }, [myId, room?.id]); // dependency
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-
-    if (isPending && pendingAction) {
-      // 1. รีเซ็ตเวลาเริ่มต้นทุกครั้งที่มี Action ใหม่
-      setCountdown(3);
-
-      // 2. เริ่มนับถอยหลัง
-      timer = setInterval(() => {
-        setCountdown((prev) => {
-          if (prev <= 1) {
-            // หมดเวลา! (นับถึง 0)
-            clearInterval(timer);
-
-            // สั่งทำงานอัตโนมัติ (เฉพาะเจ้าของ Action เท่านั้นที่เป็นคนยิง API)
-            // เพื่อป้องกัน API ชนกันหลายคน
-            if (pendingAction.source_player_id === myId) {
-              handleResolve();
-            }
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
-
-    // Cleanup: ถ้ามีคน Nope หรือสถานะเปลี่ยน ให้หยุดเวลาทันที
-    return () => clearInterval(timer);
-  }, [isPending, pendingAction, myId]); // dependency สำคัญ
-
   // --- Helpers ---
   const me = players.find((p) => p.id === myId);
   const opponents = players.filter((p) => p.id !== myId);
@@ -416,6 +386,36 @@ export default function GamePage() {
       setIsProcessing(false); // 🔓 ปลดล็อกถ้าพัง
     }
   };
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (isPending && pendingAction) {
+      // 1. รีเซ็ตเวลาเริ่มต้นทุกครั้งที่มี Action ใหม่
+      setCountdown(3);
+
+      // 2. เริ่มนับถอยหลัง
+      timer = setInterval(() => {
+        setCountdown((prev) => {
+          if (prev <= 1) {
+            // หมดเวลา! (นับถึง 0)
+            clearInterval(timer);
+
+            // สั่งทำงานอัตโนมัติ (เฉพาะเจ้าของ Action เท่านั้นที่เป็นคนยิง API)
+            // เพื่อป้องกัน API ชนกันหลายคน
+            if (pendingAction.source_player_id === myId) {
+              handleResolve();
+            }
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    // Cleanup: ถ้ามีคน Nope หรือสถานะเปลี่ยน ให้หยุดเวลาทันที
+    return () => clearInterval(timer);
+  }, [isPending, pendingAction, myId]);
 
   // --- Render ---
 
